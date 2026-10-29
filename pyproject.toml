@@ -52,7 +52,11 @@ module-name = "doctor"
 module-root = ""
 # The wheel is for library use: leave out the test suite and its 23 MB of
 # assets. The sdist keeps them.
-wheel-exclude = ["doctor/test_assets", "doctor/tests.py"]
+wheel-exclude = [
+  "doctor/test_assets",
+  "doctor/tests.py",
+  "doctor/test_extract.py",
+]
 
 [dependency-groups]
 dev = [
