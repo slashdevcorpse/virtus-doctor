@@ -1,0 +1,63 @@
+# Release of the virtus fork (VIRTUS.md). A tag v<upstream version>+virtus.<n>
+# on the virtus branch builds the wheel and the sdist with uv and publishes them
+# with one SHA256SUMS as the assets of the GitHub release of the tag.
+name: virtus-release
+
+on:
+  push:
+    tags:
+      - 'v*\+virtus.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: jog-16vcpu
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.1'
+          enable-cache: false
+
+      - name: Build
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH
+          uv build --python 3.13.15 --out-dir dist
+
+      - name: Check the assets
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          wheel="dist/doctor-${version}-py3-none-any.whl"
+          sdist="dist/doctor-${version}.tar.gz"
+          test -f "$wheel" || { echo "no wheel for version ${version}"; ls dist; exit 1; }
+          test -f "$sdist" || { echo "no sdist for version ${version}"; ls dist; exit 1; }
+          # The wheel holds the doctor package without its tests.
+          if unzip -Z1 "$wheel" | grep -Ev '^(doctor/|doctor-[^/]+\.dist-info/)'; then
+            echo "the wheel holds files outside the doctor package"
+            exit 1
+          fi
+          if unzip -Z1 "$wheel" | grep -E '^doctor/(test_assets/|tests\.py|test_extract\.py)'; then
+            echo "the wheel holds the tests"
+            exit 1
+          fi
+          unzip -Z1 "$wheel" | grep -qx 'doctor/extract.py' || { echo "the wheel has no doctor/extract.py"; exit 1; }
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cd dist
+          sha256sum -- *.whl *.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "$TAG" --notes "Built from ${GITHUB_SHA}. See VIRTUS.md." \
+            -- *.whl *.tar.gz SHA256SUMS
