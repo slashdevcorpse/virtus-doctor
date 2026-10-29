@@ -26,6 +26,8 @@ One line for each commit on `virtus` that is not in upstream:
    not change.
 3. `Add the release workflow of the virtus fork`: `.github/workflows/virtus-release.yml`.
 4. `Add VIRTUS.md`: this file.
+5. `Run the upstream deploy workflow only in upstream`: each job of `.github/workflows/deploy.yml` (Docker Hub push,
+   EKS deploy) has `if: github.repository == 'freelawproject/doctor'`, so it never runs in this fork.
 
 ## Library use
 
