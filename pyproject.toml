@@ -1,8 +1,9 @@
 [project]
 name = "doctor"
-version = "0.3.6"
+version = "0.3.6+virtus.1"
 description = "CourtListener doctor"
 requires-python = ">=3.12"
+license-files = ["LICENSE"]
 dependencies = [
   "centralia>=0.0.6",
   "certifi",
@@ -35,6 +36,26 @@ dependencies = [
   "urllib3>=1.25.10",
   "uvicorn",
   "x-ray==0.3.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.9,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv]
+# The service installs its dependencies before it copies the source
+# (docker/Dockerfile), so uv sync must not install the project itself.
+package = false
+
+[tool.uv.build-backend]
+module-name = "doctor"
+module-root = ""
+# The wheel is for library use: leave out the test suite and its 23 MB of
+# assets. The sdist keeps them.
+wheel-exclude = [
+  "doctor/test_assets",
+  "doctor/tests.py",
+  "doctor/test_extract.py",
 ]
 
 [dependency-groups]

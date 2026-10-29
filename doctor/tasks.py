@@ -203,6 +203,7 @@ async def extract_from_pdf(
     path: str,
     ocr_available: bool = False,
     page_count: int | None = None,
+    ocr_pages_per_slice: int | None = None,
 ) -> Any:
     """Extract text from pdfs.
 
@@ -217,6 +218,8 @@ async def extract_from_pdf(
     :param ocr_available: Whether we should do OCR stuff
     :param page_count: The document's page count if the caller already has
         it, so OCR does not parse the PDF again; None to look it up
+    :param ocr_pages_per_slice: The OCR slice size; None to read
+        settings.DOCTOR_OCR_PAGES_PER_SLICE
     :return Tuple of the content itself and any errors we received
     """
     content, err, returncode = await make_pdftotext_process(path)
@@ -230,7 +233,9 @@ async def extract_from_pdf(
             content = fix_mojibake(content)
     else:
         if ocr_needed(path, content):
-            success, ocr_content = await extract_by_ocr(path, page_count)
+            success, ocr_content = await extract_by_ocr(
+                path, page_count, ocr_pages_per_slice
+            )
             if success:
                 # Check content length and take the longer of the two
                 if len(ocr_content) > len(content):
@@ -255,12 +260,14 @@ OCR_PAGE_SEPARATOR = "\f"
 
 
 async def extract_by_ocr(
-    path: str, page_count: int | None = None
+    path: str,
+    page_count: int | None = None,
+    pages_per_slice: int | None = None,
 ) -> tuple[bool, str]:
     """Extract the contents of a PDF using OCR.
 
     The document is rasterized and OCRed in slices of
-    ``settings.DOCTOR_OCR_PAGES_PER_SLICE`` pages, one slice at a time, so
+    ``pages_per_slice`` pages, one slice at a time, so
     ghostscript, tesseract and /tmp each hold at most one slice however
     long the document is. A document that fits in one slice takes a
     single pass, as does one whose page count pypdf cannot read.
@@ -274,9 +281,13 @@ async def extract_by_ocr(
     :param path: The path to the file
     :param page_count: The page count if the caller already has it; None
         to read it with pypdf
+    :param pages_per_slice: The slice size; None to read
+        settings.DOCTOR_OCR_PAGES_PER_SLICE
     :return Tuple with success or fail boolean and text
     """
-    pages_per_slice = max(1, settings.DOCTOR_OCR_PAGES_PER_SLICE)
+    if pages_per_slice is None:
+        pages_per_slice = int(settings.DOCTOR_OCR_PAGES_PER_SLICE)
+    pages_per_slice = max(1, pages_per_slice)
     if page_count is None:
         page_count = get_page_count(path, "pdf")
     page_count = page_count or 0

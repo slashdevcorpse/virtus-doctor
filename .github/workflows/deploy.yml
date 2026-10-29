@@ -12,8 +12,9 @@ env:
 
 jobs:
   build:
-    # Build only merged PRs
-    if: (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    # Build only merged PRs, and only upstream: the virtus fork releases
+    # through virtus-release.yml
+    if: github.repository == 'freelawproject/doctor' && (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -27,6 +28,7 @@ jobs:
           make push --file docker/Makefile -e VERSION=$(git rev-parse --short HEAD)
 
   deploy:
+    if: github.repository == 'freelawproject/doctor'
     needs: build
     runs-on: ubuntu-latest
     steps:
